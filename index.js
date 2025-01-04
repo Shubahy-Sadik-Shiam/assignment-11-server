@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -24,6 +24,9 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     const bookCollection = client.db("bookDB").collection("books");
+    const borrowedBookCollection = client
+      .db("bookDB")
+      .collection("borrowedBooks");
 
     app.post("/allBooks", async (req, res) => {
       const books = req.body;
@@ -39,9 +42,68 @@ async function run() {
 
     app.get("/books/:category", async (req, res) => {
       const category = req.params.category;
-      const query = {category: category};
+      const query = { category: category };
       const cursor = bookCollection.find(query);
       const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    app.get("/book/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await bookCollection.findOne(query);
+      res.send(result);
+    });
+
+    app.put("/allBooks", async (req, res) => {
+      const { id } = req.body;
+      const book = await bookCollection.findOne({ _id: new ObjectId(id) });
+      const newQuantity = (parseInt(book.quantity) - 1).toString();
+      const result = await bookCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { quantity: newQuantity } }
+      );
+      res.send(result);
+    });
+
+    app.put("/allBooks2", async (req, res) => {
+      const { id } = req.body;
+      const book = await bookCollection.findOne({ _id: new ObjectId(id) });
+
+      const newQuantity = (parseInt(book.quantity) + 1).toString();
+      const result = await bookCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { quantity: newQuantity } }
+      );
+      res.send(result);
+    });
+
+    // borrow related apis-------->
+
+    app.post("/borrowedBooks", async (req, res) => {
+      const borrowedBooks = req.body;
+      const result = await borrowedBookCollection.insertOne(borrowedBooks);
+      res.send(result);
+    });
+
+    app.get("/borrowedBooks", async (req, res) => {
+      const email = req.query.email;
+      const query = { email: email };
+      const result = await borrowedBookCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.get("/borrowedBooks/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await borrowedBookCollection.findOne(query);
+      res.send(result);
+    });
+
+    app.delete("/borrowedBooks/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await borrowedBookCollection.deleteOne(query);
       res.send(result);
     });
     // Connect the client to the server	(optional starting in v4.7)
