@@ -110,6 +110,12 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/availableBooks", async (req, res)=>{
+      const filter = bookCollection.find({$expr: { $gt: [{$toInt: "$quantity"}, 0]} })
+      const availableBooks = await filter.toArray();
+      res.send(availableBooks)
+    })
+
     // borrow related apis-------->
 
     app.post("/borrowedBooks", async (req, res) => {
