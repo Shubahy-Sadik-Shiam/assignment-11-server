@@ -55,13 +55,20 @@ async function run() {
       res.send(result);
     });
 
+    // Update quantity of book---->
+
     app.put("/allBooks", async (req, res) => {
       const { id } = req.body;
       const book = await bookCollection.findOne({ _id: new ObjectId(id) });
       const newQuantity = (parseInt(book.quantity) - 1).toString();
       const result = await bookCollection.updateOne(
         { _id: new ObjectId(id) },
-        { $set: { quantity: newQuantity } }
+        {
+          $set: {
+            quantity: newQuantity,
+            isBorrowed: true,
+          },
+        }
       );
       res.send(result);
     });
@@ -73,8 +80,33 @@ async function run() {
       const newQuantity = (parseInt(book.quantity) + 1).toString();
       const result = await bookCollection.updateOne(
         { _id: new ObjectId(id) },
-        { $set: { quantity: newQuantity } }
+        {
+          $set: {
+            quantity: newQuantity,
+            isBorrowed: false,
+          },
+        }
       );
+      res.send(result);
+    });
+
+    // update book information------>
+
+    app.patch("/updateBook/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const updatedBook = req.body;
+      const book = {
+        $set: {
+          book_title: updatedBook.book_title,
+          cover_photo: updatedBook.cover_photo,
+          author_name: updatedBook.author_name,
+          category: updatedBook.category,
+          rating: updatedBook.rating,
+        },
+      };
+      const result = await bookCollection.updateOne(filter, book, options);
       res.send(result);
     });
 
