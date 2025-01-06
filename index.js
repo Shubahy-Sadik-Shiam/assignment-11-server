@@ -1,8 +1,8 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
-const jwt = require('jsonwebtoken');
-const cookieParser = require("cookie-parser")
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 const app = express();
@@ -11,10 +11,27 @@ const port = process.env.PORT || 5000;
 // middleware
 app.use(cookieParser());
 app.use(express.json());
-app.use(cors({
-  origin: ["http://localhost:5173"],
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: ["http://localhost:5173"],
+    credentials: true,
+  })
+);
+
+const verifyToken = (req, res, next) => {
+  const token = req?.cookies?.token;
+
+  if (!token) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ message: "unauthorized access" });
+    }
+    req.user = decoded;
+    next();
+  });
+};
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.czfhh.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -34,20 +51,30 @@ async function run() {
       .db("bookDB")
       .collection("borrowedBooks");
 
-      // JWT authentication related apis----->
+    // JWT authentication related apis----->
 
-      app.post("/jwt", (req, res)=>{
-        const user = req.body;
-        const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
-          expiresIn: "5h"
-        })
-        res
+    app.post("/jwt", (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "5h",
+      });
+      res
         .cookie("token", token, {
           httpOnly: true,
-          secure: false
+          secure: false,
         })
-        .send({success: true});
-      })
+        .send({ success: true });
+    });
+
+    app.post("/logout", (req, res) => {
+      res
+        .clearCookie("token", {
+          httpOnly: true,
+          secure: false,
+        })
+        .send({ success: true });
+    });
+    // Books related apis-------->
 
     app.post("/allBooks", async (req, res) => {
       const books = req.body;
@@ -55,7 +82,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/allBooks", async (req, res) => {
+    app.get("/allBooks", verifyToken, async (req, res) => {
       const cursor = bookCollection.find();
       const result = await cursor.toArray();
       res.send(result);
@@ -131,11 +158,13 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/availableBooks", async (req, res)=>{
-      const filter = bookCollection.find({$expr: { $gt: [{$toInt: "$quantity"}, 0]} })
+    app.get("/availableBooks", async (req, res) => {
+      const filter = bookCollection.find({
+        $expr: { $gt: [{ $toInt: "$quantity" }, 0] },
+      });
       const availableBooks = await filter.toArray();
-      res.send(availableBooks)
-    })
+      res.send(availableBooks);
+    });
 
     // borrow related apis-------->
 
