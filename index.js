@@ -96,7 +96,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/book/:id", async (req, res) => {
+    app.get("/book/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await bookCollection.findOne(query);
@@ -158,7 +158,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/availableBooks", async (req, res) => {
+    app.get("/availableBooks", verifyToken, async (req, res) => {
       const filter = bookCollection.find({
         $expr: { $gt: [{ $toInt: "$quantity" }, 0] },
       });
@@ -174,9 +174,14 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/borrowedBooks", async (req, res) => {
+    app.get("/borrowedBooks", verifyToken, async (req, res) => {
       const email = req.query.email;
       const query = { email: email };
+
+      if (req.user.email !== email) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      
       const result = await borrowedBookCollection.find(query).toArray();
       res.send(result);
     });
